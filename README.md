@@ -32,7 +32,7 @@ O **BiblioWebAPI** é um sistema desenvolvido para gerenciar o empréstimo de li
 ### 1\. **Clone o Repositório**
 
 ```bash
-git clone https://github.com/usuário/biblioWebAPI.git  cd biblioWebAPI
+git clone https://github.com/JulianGN/biblio.webapi.git  cd .\biblio.webapi\
 ```
 
 ### 2\. **Instale as Dependências**
@@ -48,8 +48,11 @@ pip install -r requirements.txt
 
 ### 3\. **Configuração do Banco de Dados**
 
-- sqlCopiarEditarCREATE DATABASE biblioDB;
-- Configure o banco de dados no arquivo config/database.py com as credenciais apropriadas.
+Configure o banco de dados no arquivo config/database.py com as credenciais apropriadas.
+
+```sql
+CREATE DATABASE biblioDB;
+```
 
 ### Configuração de Variáveis de Ambiente
 
@@ -103,8 +106,23 @@ Isso iniciará o serviço em contêiner, e você poderá acessar a aplicação n
 
 ## Estrutura do Projeto
 
-```bash
-biblioWebapi/  │── src/  │   │── gestor/         # Contexto "Gestor" (Empréstimos)  │   │   │── domain/     # Entidades e regras de negócio  │   │   │── application/ # Casos de uso  │   │   │── infrastructure/ # Integração com banco, APIs externas  │   │   │── presentation/ # Controllers, Views, Serializers  │── config/             # Configurações gerais do projeto (Banco de dados, segurança)  │── manage.py           # CLI do Django  │── requirements.txt    # Dependências do projeto
+```markdown
+
+```
+
+biblioWebapi/
+│── src/
+│ │── gestor/ # Contexto "Gestor" (Empréstimos)
+│ │ │── domain/ # Entidades e regras de negócio
+│ │ │── application/ # Casos de uso
+│ │ │── infrastructure/ # Integração com banco, APIs externas
+│ │ │── presentation/ # Controllers, Views, Serializers
+│── config/ # Configurações gerais do projeto (Banco de dados, segurança)
+│── manage.py # CLI do Django
+│── requirements.txt # Dependências do projeto
+
+```
+
 ```
 
 ## Rotas da API
