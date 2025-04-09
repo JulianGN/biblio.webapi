@@ -107,9 +107,6 @@ Isso iniciará o serviço em contêiner, e você poderá acessar a aplicação n
 ## Estrutura do Projeto
 
 ```markdown
-
-```
-
 biblio.webapi/
 │── src/
 │ │── gestor/ # Contexto "Gestor" (Empréstimos)
@@ -120,9 +117,6 @@ biblio.webapi/
 │── config/ # Configurações gerais do projeto (Banco de dados, segurança)
 │── manage.py # CLI do Django
 │── requirements.txt # Dependências do projeto
-
-```
-
 ```
 
 ## Rotas da API
