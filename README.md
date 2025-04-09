@@ -41,8 +41,8 @@ Recomenda-se criar um ambiente virtual antes de instalar as dependências.
 
 ```bash
 python3 -m venv venv
-source venv/bin/activate  # Linux/macOS
-venv\Scripts\activate     # Windows
+source venv/bin/activate  # Para Linux/macOS
+venv\Scripts\activate     # Para Windows
 pip install -r requirements.txt
 ```
 
@@ -110,7 +110,7 @@ Isso iniciará o serviço em contêiner, e você poderá acessar a aplicação n
 
 ```
 
-biblioWebapi/
+biblio.webapi/
 │── src/
 │ │── gestor/ # Contexto "Gestor" (Empréstimos)
 │ │ │── domain/ # Entidades e regras de negócio
