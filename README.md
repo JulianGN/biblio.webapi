@@ -123,9 +123,70 @@ biblio.webapi/
 
 A seguir estão algumas rotas da API disponíveis:
 
-- **GET /gestor/books/** - Listar todos os livros.
-- **POST /gestor/loan/** - Registrar um novo empréstimo de livro.
-- **GET /gestor/loans/** - Listar todos os empréstimos.
+- **GET /gestor/livros/**: Listar todos os livros.
+- **POST /gestor/livros/**: Criar um novo livro. Envie os seguintes campos no corpo da requisição:
+  ```json
+  {
+    "titulo": "Título do Livro",
+    "autor": "Nome do Autor",
+    "genero": 1, // ID de um gênero existente
+    "editora": "Nome da Editora",
+    "isbn": "1234567890123",
+    "paginas": 100,
+    "idioma": "Português"
+  }
+  ```
+- **GET /gestor/livros/{id}/**: Obter detalhes de um livro específico.
+- **PUT /gestor/livros/{id}/**: Atualizar um livro específico. Envie todos os campos obrigatórios.
+- **PATCH /gestor/livros/{id}/**: Atualizar parcialmente um livro específico. Envie apenas os campos que deseja alterar.
+- **DELETE /gestor/livros/{id}/**: Excluir um livro específico.
+
+## Passo a Passo para Configurar o Banco de Dados
+
+### 1. Criar as Migrações
+
+Após configurar o projeto, crie as migrações para refletir as alterações no banco de dados:
+
+```bash
+python manage.py makemigrations gestor
+```
+
+### 2. Aplicar as Migrações
+
+Aplique as migrações para criar as tabelas no banco de dados e popular a tabela de gêneros com valores iniciais:
+
+```bash
+python manage.py migrate
+```
+
+### 3. Verificar os Gêneros Criados
+
+Os gêneros iniciais criados automaticamente são:
+
+- Ficção
+- Não Ficção
+- Romance
+- Fantasia
+- Terror
+- Biografia
+- História
+- Ciência
+
+Você pode verificar os IDs dos gêneros no Django Admin ou via shell:
+
+```bash
+python manage.py shell
+```
+
+No shell, execute:
+
+```python
+from gestor.domain.entities.genero import Genero
+for genero in Genero.objects.all():
+    print(f"ID: {genero.id}, Nome: {genero.nome}")
+```
+
+Isso exibirá os IDs e nomes dos gêneros disponíveis.
 
 ## Problemas Comuns e Soluções
 
