@@ -133,13 +133,33 @@ A seguir estão algumas rotas da API disponíveis:
     "editora": "Nome da Editora",
     "isbn": "1234567890123",
     "paginas": 100,
-    "idioma": "Português"
+    "idioma": "Português",
+    "unidades": [
+      { "unidade": 1, "exemplares": 5 },
+      { "unidade": 2, "exemplares": 3 }
+    ]
   }
   ```
 - **GET /gestor/livros/{id}/**: Obter detalhes de um livro específico.
 - **PUT /gestor/livros/{id}/**: Atualizar um livro específico. Envie todos os campos obrigatórios.
 - **PATCH /gestor/livros/{id}/**: Atualizar parcialmente um livro específico. Envie apenas os campos que deseja alterar.
 - **DELETE /gestor/livros/{id}/**: Excluir um livro específico.
+
+- **GET /gestor/unidades/**: Listar todas as unidades.
+- **POST /gestor/unidades/**: Criar uma nova unidade. Envie os seguintes campos no corpo da requisição:
+  ```json
+  {
+    "nome": "Unidade Central",
+    "endereco": "Rua Principal, 123",
+    "telefone": "(11) 1234-5678",
+    "email": "contato@unidade.com",
+    "site": "https://unidade.com"
+  }
+  ```
+- **GET /gestor/unidades/{id}/**: Obter detalhes de uma unidade específica.
+- **PUT /gestor/unidades/{id}/**: Atualizar uma unidade específica. Envie todos os campos obrigatórios.
+- **PATCH /gestor/unidades/{id}/**: Atualizar parcialmente uma unidade específica. Envie apenas os campos que deseja alterar.
+- **DELETE /gestor/unidades/{id}/**: Excluir uma unidade específica.
 
 ## Passo a Passo para Configurar o Banco de Dados
 
