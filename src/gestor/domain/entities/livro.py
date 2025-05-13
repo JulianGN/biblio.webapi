@@ -1,5 +1,7 @@
-from gestor.domain.entities.genero import Genero
 from django.db import models
+from gestor.domain.entities.genero import Genero
+
+# Reimporta `models` para corrigir os erros de referência.
 
 class Livro(models.Model):
     titulo = models.CharField(max_length=255)
@@ -11,6 +13,7 @@ class Livro(models.Model):
     paginas = models.IntegerField(null=True, blank=True)
     capa = models.CharField(max_length=255, null=True, blank=True)
     idioma = models.CharField(max_length=50, null=True, blank=True)
+    unidades = models.ManyToManyField('Unidade', through='LivroUnidade')
 
     class Meta:
         app_label = 'gestor'
