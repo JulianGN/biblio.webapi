@@ -2,6 +2,7 @@ from rest_framework import serializers
 from gestor.domain.entities.livro import Livro
 from gestor.domain.entities.unidade import Unidade
 from gestor.domain.entities.livro_unidade import LivroUnidade
+from gestor.domain.entities.tipo_obra import TipoObra
 
 class UnidadeSerializer(serializers.ModelSerializer):
     class Meta:
@@ -17,6 +18,7 @@ class LivroUnidadeSerializer(serializers.ModelSerializer):
 
 class LivroSerializer(serializers.ModelSerializer):
     unidades = LivroUnidadeSerializer(source='livrounidade_set', many=True)
+    tipo_obra = serializers.PrimaryKeyRelatedField(queryset=TipoObra.objects.all(), allow_null=True, required=False)
 
     class Meta:
         model = Livro
