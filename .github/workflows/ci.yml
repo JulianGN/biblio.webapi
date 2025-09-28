@@ -1,0 +1,81 @@
+name: CI - webapi
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: biblio_ci
+          MYSQL_USER: biblio
+          MYSQL_PASSWORD: biblio
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+
+    env:
+      DATABASE_NAME: biblio_ci
+      DATABASE_USER: biblio
+      DATABASE_PASSWORD: biblio
+      DATABASE_HOST: 127.0.0.1
+      DATABASE_PORT: 3306
+      DATABASE_URL: mysql://biblio:biblio@127.0.0.1:3306/biblio_ci
+      SECRET_KEY: dummy-secret-key
+      DEBUG: "False"
+      PYTHONWARNINGS: ignore
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: System packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential default-libmysqlclient-dev pkg-config python3-dev mysql-client
+
+      - name: Install Python deps
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Wait for MySQL
+        run: |
+          for i in {1..30}; do
+            mysqladmin ping -h127.0.0.1 -uroot -proot --silent && break
+            echo "Aguardando MySQL subir..."
+            sleep 2
+          done
+          mysql -h127.0.0.1 -uroot -proot -e "SHOW DATABASES;"
+
+      - name: Django check (erros fatais)
+        run: |
+          python manage.py check --fail-level=ERROR
+
+      - name: Django migrate
+        run: |
+          python manage.py migrate --noinput
+
+      - name: Django tests (se existirem)
+        run: |
+          if ls -R | grep -q "tests.py\|/tests/"; then
+            python manage.py test
+          else
+            echo "Sem testes encontrados, ok."
+          fi
