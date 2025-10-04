@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+import os  # <-- adicionado
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -25,7 +26,17 @@ SECRET_KEY = 'django-insecure-h!ds_!gx+#axo!pggb^chklwxc&7)uq^jo6de48*b-l#q^0(51
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    "biblio-webapi.onrender.com",
+    "localhost",
+    "127.0.0.1",
+]
+
+# Para Django 5.x: domínios confiáveis para CSRF (inclua sempre com https://)
+CSRF_TRUSTED_ORIGINS = [
+    "https://biblio-webapi.onrender.com",
+    "http://localhost:5173",
+]
 
 
 # Application definition
