@@ -36,6 +36,7 @@ ALLOWED_HOSTS = [
 CSRF_TRUSTED_ORIGINS = [
     "https://biblio-webapi.onrender.com",
     "http://localhost:5173",
+    "https://bibliotecasconectadas.vercel.app",
 ]
 
 
@@ -146,4 +147,5 @@ REST_FRAMEWORK = {
 
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',
+    "https://bibliotecasconectadas.vercel.app",
 ]
