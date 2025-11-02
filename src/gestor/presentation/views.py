@@ -1,6 +1,6 @@
 # src/gestor/presentation/views.py
 from django.db.models import Q
-from rest_framework import viewsets, filters, permissions, pagination
+from rest_framework import viewsets, filters, permissions
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
@@ -17,44 +17,46 @@ from gestor.presentation.serializers import (
     LivroUnidadeSerializer,
 )
 
-# ---------- Paginação ----------
-class DefaultPageNumberPagination(pagination.PageNumberPagination):
-    page_size = 20
-    page_size_query_param = "size"
-    max_page_size = 200
-
-# ---------- ViewSets ----------
-class ReadOnlyOrAdmin(permissions.BasePermission):
-    """
-    Libera leitura (GET, HEAD, OPTIONS) para todos.
-    Para escrever (POST/PUT/PATCH/DELETE), exige is_staff.
-    """
-    def has_permission(self, request, view):
-        if request.method in ("GET", "HEAD", "OPTIONS"):
-            return True
-        return bool(request.user and request.user.is_staff)
+# =========================================================
+# ViewSets sem paginação (array puro) e com acesso liberado
+# =========================================================
 
 class UnidadeViewSet(viewsets.ModelViewSet):
     queryset = Unidade.objects.all().order_by("id")
     serializer_class = UnidadeSerializer
-    permission_classes = [ReadOnlyOrAdmin]
-    pagination_class = DefaultPageNumberPagination
+    permission_classes = [permissions.AllowAny]
+    pagination_class = None  # <- sem paginação
 
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ["nome", "endereco", "telefone", "email", "site"]
     ordering_fields = ["id", "nome"]
     ordering = ["id"]
 
+    # força resposta como array puro (defensivo)
+    def list(self, request, *args, **kwargs):
+        qs = self.filter_queryset(self.get_queryset())
+        s = self.get_serializer(qs, many=True)
+        return Response(s.data)
+
 
 class LivroUnidadeViewSet(viewsets.ModelViewSet):
-    queryset = LivroUnidade.objects.all().select_related("livro", "unidade").order_by("id")
+    queryset = (
+        LivroUnidade.objects.all()
+        .select_related("livro", "unidade")
+        .order_by("id")
+    )
     serializer_class = LivroUnidadeSerializer
-    permission_classes = [ReadOnlyOrAdmin]
-    pagination_class = DefaultPageNumberPagination
+    permission_classes = [permissions.AllowAny]
+    pagination_class = None
 
     filter_backends = [filters.OrderingFilter]
     ordering_fields = ["id"]
     ordering = ["id"]
+
+    def list(self, request, *args, **kwargs):
+        qs = self.filter_queryset(self.get_queryset())
+        s = self.get_serializer(qs, many=True)
+        return Response(s.data)
 
 
 class LivroViewSet(viewsets.ModelViewSet):
@@ -63,13 +65,12 @@ class LivroViewSet(viewsets.ModelViewSet):
     Suporta também ?unidades=NOME_DA_UNIDADE (exato ou parcial).
     """
     serializer_class = LivroSerializer
-    permission_classes = [ReadOnlyOrAdmin]
-    pagination_class = DefaultPageNumberPagination
+    permission_classes = [permissions.AllowAny]
+    pagination_class = None
 
     # Busca e ordenação DRF
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    # Busca livre adicional (além dos filtros exatos)
-    search_fields = ["titulo", "autor", "editora", "isbn"]
+    search_fields = ["titulo", "autor", "editora", "isbn"]  # busca livre adicional
     ordering_fields = ["id", "titulo"]
     ordering = ["id"]
 
@@ -77,8 +78,8 @@ class LivroViewSet(viewsets.ModelViewSet):
         # Perf: carrega FKs/M2M com antecedência
         qs = (
             Livro.objects.all()
-            .select_related("tipo_obra")                # se Livro.tipo_obra é FK
-            .prefetch_related("unidades")              # se Livro.unidades é M2M
+            .select_related("tipo_obra")   # se Livro.tipo_obra é FK
+            .prefetch_related("unidades")  # se Livro.unidades é M2M
             .order_by("id")
         )
 
@@ -106,20 +107,17 @@ class LivroViewSet(viewsets.ModelViewSet):
 
         unidades = p.get("unidades")
         if unidades:
-            # Aceita IDs separados por vírgula: ?unidades=1,2,3
-            # Aceita também nomes (parciais): ?unidades=Central
+            # Aceita IDs separados por vírgula (1,2,3) ou nomes (parciais)
             raw = [u.strip() for u in unidades.split(",") if u.strip()]
             ids = [int(u) for u in raw if u.isdigit()]
             nomes = [u for u in raw if not u.isdigit()]
 
             q = Q()
             if ids:
-                # Se Livro tem ManyToMany "unidades", funciona direto:
-                q |= Q(unidades__in=ids)
-                # Se fosse a through, poderia ser: Q(livro_unidades__unidade_id__in=ids)
+                q |= Q(unidades__in=ids)  # ManyToMany
+                # Se fosse through: Q(livro_unidades__unidade_id__in=ids)
 
             if nomes:
-                # tenta casar por nome de unidade (parcial)
                 q |= Q(unidades__nome__icontains=" ".join(nomes))
 
             if q:
@@ -143,12 +141,12 @@ class LivroViewSet(viewsets.ModelViewSet):
             ),
             OpenApiParameter("search", OpenApiTypes.STR, OpenApiParameter.QUERY, description="Busca livre (DRF SearchFilter)"),
             OpenApiParameter("ordering", OpenApiTypes.STR, OpenApiParameter.QUERY, description="Ordenação (ex.: titulo ou -titulo)"),
-            OpenApiParameter("page", OpenApiTypes.INT, OpenApiParameter.QUERY, description="Página (paginação)"),
-            OpenApiParameter("size", OpenApiTypes.INT, OpenApiParameter.QUERY, description="Tamanho da página (default=20, máx=200)"),
         ]
     )
     def list(self, request, *args, **kwargs):
-        return super().list(request, *args, **kwargs)
+        qs = self.filter_queryset(self.get_queryset())
+        s = self.get_serializer(qs, many=True)
+        return Response(s.data)  # array puro
 
 
 # ---------- Endpoint utilitário ----------
