@@ -175,3 +175,18 @@ def dados_iniciais(_request):
         "unidades": list(unidades),
         "tipo_obras": list(tipos),
     })
+
+# --- DEBUG: Info do banco em uso ---
+from django.db import connection
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+
+@api_view(["GET"])
+def db_info(_request):
+    cfg = connection.settings_dict
+    return Response({
+        "vendor": connection.vendor,   # 'postgresql' ou 'sqlite'
+        "name":   cfg.get("NAME"),
+        "user":   cfg.get("USER"),
+        "host":   cfg.get("HOST"),
+    })

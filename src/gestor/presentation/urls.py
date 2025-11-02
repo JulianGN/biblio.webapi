@@ -6,6 +6,7 @@ from gestor.presentation.views import (
     UnidadeViewSet,
     LivroUnidadeViewSet,
     dados_iniciais,
+    db_info,  # 👈 adiciona aqui
 )
 
 # ---------- Roteador padrão DRF ----------
@@ -18,4 +19,5 @@ router.register(r"livro-unidades", LivroUnidadeViewSet, basename="livro-unidade"
 urlpatterns = [
     path("", include(router.urls)),
     path("dados-iniciais/", dados_iniciais, name="dados-iniciais"),
+    path("debug/db-info/", db_info, name="db-info"),  # 👈 nova rota
 ]
