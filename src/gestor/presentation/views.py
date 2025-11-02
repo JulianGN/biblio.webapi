@@ -1,10 +1,10 @@
-# src/gestor/presentation/views.py
+# 📁 src/gestor/presentation/views.py
 from django.db.models import Q
 from rest_framework import viewsets, filters, permissions
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
+from django.db import connection
 
 from gestor.domain.entities.livro import Livro
 from gestor.domain.entities.unidade import Unidade
@@ -25,14 +25,13 @@ class UnidadeViewSet(viewsets.ModelViewSet):
     queryset = Unidade.objects.all().order_by("id")
     serializer_class = UnidadeSerializer
     permission_classes = [permissions.AllowAny]
-    pagination_class = None  # <- sem paginação
+    pagination_class = None
 
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ["nome", "endereco", "telefone", "email", "site"]
     ordering_fields = ["id", "nome"]
     ordering = ["id"]
 
-    # força resposta como array puro (defensivo)
     def list(self, request, *args, **kwargs):
         qs = self.filter_queryset(self.get_queryset())
         s = self.get_serializer(qs, many=True)
@@ -53,6 +52,21 @@ class LivroUnidadeViewSet(viewsets.ModelViewSet):
     ordering_fields = ["id"]
     ordering = ["id"]
 
+    # ✅ Permite buscar por livro ou unidade via query params
+    def get_queryset(self):
+        qs = super().get_queryset()
+        p = self.request.query_params
+
+        livro_id = p.get("livro")
+        if livro_id:
+            qs = qs.filter(livro_id=livro_id)
+
+        unidade_id = p.get("unidade")
+        if unidade_id:
+            qs = qs.filter(unidade_id=unidade_id)
+
+        return qs
+
     def list(self, request, *args, **kwargs):
         qs = self.filter_queryset(self.get_queryset())
         s = self.get_serializer(qs, many=True)
@@ -68,17 +82,15 @@ class LivroViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.AllowAny]
     pagination_class = None
 
-    # Busca e ordenação DRF
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ["titulo", "autor", "editora", "isbn"]  # busca livre adicional
+    search_fields = ["titulo", "autor", "editora", "isbn"]
     ordering_fields = ["id", "titulo"]
     ordering = ["id"]
 
     def get_queryset(self):
-        # Perf: carrega FKs conhecidas sem arriscar related_name de through
         qs = (
             Livro.objects.all()
-            .select_related("tipo_obra")   # se Livro.tipo_obra é FK
+            .select_related("tipo_obra")
             .order_by("id")
         )
 
@@ -106,15 +118,12 @@ class LivroViewSet(viewsets.ModelViewSet):
 
         unidades = p.get("unidades")
         if unidades:
-            # Aceita IDs separados por vírgula (1,2,3) ou nomes (parciais)
             raw = [u.strip() for u in unidades.split(",") if u.strip()]
             ids = [int(u) for u in raw if u.isdigit()]
             nomes = [u for u in raw if not u.isdigit()]
-
             livro_ids_q = Q()
 
             if ids:
-                # livros que têm vínculo com quaisquer dessas unidades
                 livro_ids_q |= Q(
                     id__in=LivroUnidade.objects.filter(
                         unidade_id__in=ids
@@ -122,7 +131,6 @@ class LivroViewSet(viewsets.ModelViewSet):
                 )
 
             if nomes:
-                # converte nomes -> ids de unidades e depois resolve livros
                 nome_busca = " ".join(nomes)
                 unidade_ids = Unidade.objects.filter(
                     nome__icontains=nome_busca
@@ -140,7 +148,6 @@ class LivroViewSet(viewsets.ModelViewSet):
 
         return qs
 
-    # ---------- Documentação Swagger dos parâmetros ----------
     @extend_schema(
         parameters=[
             OpenApiParameter("titulo", OpenApiTypes.STR, OpenApiParameter.QUERY, description="Busca parcial por título"),
@@ -161,7 +168,7 @@ class LivroViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         qs = self.filter_queryset(self.get_queryset())
         s = self.get_serializer(qs, many=True)
-        return Response(s.data)  # array puro
+        return Response(s.data)
 
 
 # ---------- Endpoint utilitário ----------
@@ -176,17 +183,14 @@ def dados_iniciais(_request):
         "tipo_obras": list(tipos),
     })
 
-# --- DEBUG: Info do banco em uso ---
-from django.db import connection
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
 
+# --- DEBUG: Info do banco em uso ---
 @api_view(["GET"])
 def db_info(_request):
     cfg = connection.settings_dict
     return Response({
-        "vendor": connection.vendor,   # 'postgresql' ou 'sqlite'
-        "name":   cfg.get("NAME"),
-        "user":   cfg.get("USER"),
-        "host":   cfg.get("HOST"),
+        "vendor": connection.vendor,
+        "name": cfg.get("NAME"),
+        "user": cfg.get("USER"),
+        "host": cfg.get("HOST"),
     })
