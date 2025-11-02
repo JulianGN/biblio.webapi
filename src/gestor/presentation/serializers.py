@@ -1,8 +1,11 @@
+# 📄 src/gestor/presentation/serializers.py
 from rest_framework import serializers
+
 from gestor.domain.entities.livro import Livro
 from gestor.domain.entities.unidade import Unidade
 from gestor.domain.entities.livro_unidade import LivroUnidade
 from gestor.domain.entities.tipo_obra import TipoObra
+from gestor.domain.entities.genero import Genero  # ⬅️ necessário porque o Livro usa "genero" (FK)
 
 
 # ============== Unidades ==============
@@ -31,6 +34,16 @@ class LivroUnidadeReadSerializer(serializers.ModelSerializer):
         fields = ["unidade", "exemplares"]
 
 
+# HÍBRIDO para manter compatibilidade com LivroUnidadeViewSet (read + write)
+class LivroUnidadeSerializer(LivroUnidadeWriteSerializer):
+    """
+    - Na escrita (create/update), usa PrimaryKeyRelatedField (como Write).
+    - Na leitura (response), serializa como Read (com Unidade detalhada).
+    """
+    def to_representation(self, instance):
+        return LivroUnidadeReadSerializer(instance).data
+
+
 # ============== Livro ==============
 class LivroSerializer(serializers.ModelSerializer):
     # entrada (write) das unidades aninhadas
@@ -39,7 +52,12 @@ class LivroSerializer(serializers.ModelSerializer):
     # saída (read) detalhada
     unidades_detalhe = serializers.SerializerMethodField(read_only=True)
 
-    # tipo_obra como FK opcional
+    # FKs como IDs (ambos opcionais, se fizer sentido no seu domínio)
+    genero = serializers.PrimaryKeyRelatedField(
+        queryset=Genero.objects.all(),
+        allow_null=True,
+        required=False,
+    )
     tipo_obra = serializers.PrimaryKeyRelatedField(
         queryset=TipoObra.objects.all(),
         allow_null=True,
@@ -58,10 +76,10 @@ class LivroSerializer(serializers.ModelSerializer):
             "paginas",
             "capa",
             "idioma",
-            "genero",      # FK (ID)
-            "tipo_obra",   # FK (ID, opcional)
-            "unidades",            # write-only
-            "unidades_detalhe",    # read-only
+            "genero",       # FK (ID, opcional)
+            "tipo_obra",    # FK (ID, opcional)
+            "unidades",             # write-only
+            "unidades_detalhe",     # read-only
         )
 
     def get_unidades_detalhe(self, obj):
@@ -75,15 +93,14 @@ class LivroSerializer(serializers.ModelSerializer):
         if unidades_payload:
             bulk = []
             for u in unidades_payload:
-                # u["unidade"] já é uma instância de Unidade por causa do PrimaryKeyRelatedField
                 bulk.append(
                     LivroUnidade(
                         livro=livro,
-                        unidade=u["unidade"],
+                        unidade=u["unidade"],                 # instância de Unidade
                         exemplares=u.get("exemplares", 1),
                     )
                 )
-            # evita falha se já existir combinação (livro, unidade)
+            # evita erro em duplicidade (livro, unidade)
             LivroUnidade.objects.bulk_create(bulk, ignore_conflicts=True)
 
         return livro
@@ -105,7 +122,7 @@ class LivroSerializer(serializers.ModelSerializer):
                     bulk.append(
                         LivroUnidade(
                             livro=instance,
-                            unidade=u["unidade"],           # instância de Unidade
+                            unidade=u["unidade"],               # instância de Unidade
                             exemplares=u.get("exemplares", 1),
                         )
                     )

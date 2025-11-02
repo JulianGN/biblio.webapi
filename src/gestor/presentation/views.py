@@ -75,11 +75,10 @@ class LivroViewSet(viewsets.ModelViewSet):
     ordering = ["id"]
 
     def get_queryset(self):
-        # Perf: carrega FKs/M2M com antecedência
+        # Perf: carrega FKs conhecidas sem arriscar related_name de through
         qs = (
             Livro.objects.all()
             .select_related("tipo_obra")   # se Livro.tipo_obra é FK
-            .prefetch_related("unidades")  # se Livro.unidades é M2M
             .order_by("id")
         )
 
@@ -112,16 +111,32 @@ class LivroViewSet(viewsets.ModelViewSet):
             ids = [int(u) for u in raw if u.isdigit()]
             nomes = [u for u in raw if not u.isdigit()]
 
-            q = Q()
+            livro_ids_q = Q()
+
             if ids:
-                q |= Q(unidades__in=ids)  # ManyToMany
-                # Se fosse through: Q(livro_unidades__unidade_id__in=ids)
+                # livros que têm vínculo com quaisquer dessas unidades
+                livro_ids_q |= Q(
+                    id__in=LivroUnidade.objects.filter(
+                        unidade_id__in=ids
+                    ).values_list("livro_id", flat=True)
+                )
 
             if nomes:
-                q |= Q(unidades__nome__icontains=" ".join(nomes))
+                # converte nomes -> ids de unidades e depois resolve livros
+                nome_busca = " ".join(nomes)
+                unidade_ids = Unidade.objects.filter(
+                    nome__icontains=nome_busca
+                ).values_list("id", flat=True)
 
-            if q:
-                qs = qs.filter(q).distinct()
+                if unidade_ids:
+                    livro_ids_q |= Q(
+                        id__in=LivroUnidade.objects.filter(
+                            unidade_id__in=list(unidade_ids)
+                        ).values_list("livro_id", flat=True)
+                    )
+
+            if livro_ids_q:
+                qs = qs.filter(livro_ids_q).distinct()
 
         return qs
 
