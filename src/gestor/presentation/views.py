@@ -1,75 +1,164 @@
-from rest_framework import viewsets
+# src/gestor/presentation/views.py
+from django.db.models import Q
+from rest_framework import viewsets, filters, permissions, pagination
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
+
 from gestor.domain.entities.livro import Livro
 from gestor.domain.entities.unidade import Unidade
 from gestor.domain.entities.livro_unidade import LivroUnidade
 from gestor.domain.entities.genero import Genero
 from gestor.domain.entities.tipo_obra import TipoObra
-from gestor.presentation.serializers import LivroSerializer, UnidadeSerializer, LivroUnidadeSerializer
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from django.db.models import Q
+from gestor.presentation.serializers import (
+    LivroSerializer,
+    UnidadeSerializer,
+    LivroUnidadeSerializer,
+)
+
+# ---------- Paginação ----------
+class DefaultPageNumberPagination(pagination.PageNumberPagination):
+    page_size = 20
+    page_size_query_param = "size"
+    max_page_size = 200
+
+# ---------- ViewSets ----------
+class ReadOnlyOrAdmin(permissions.BasePermission):
+    """
+    Libera leitura (GET, HEAD, OPTIONS) para todos.
+    Para escrever (POST/PUT/PATCH/DELETE), exige is_staff.
+    """
+    def has_permission(self, request, view):
+        if request.method in ("GET", "HEAD", "OPTIONS"):
+            return True
+        return bool(request.user and request.user.is_staff)
 
 class UnidadeViewSet(viewsets.ModelViewSet):
-    queryset = Unidade.objects.all()
+    queryset = Unidade.objects.all().order_by("id")
     serializer_class = UnidadeSerializer
+    permission_classes = [ReadOnlyOrAdmin]
+    pagination_class = DefaultPageNumberPagination
+
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ["nome", "endereco", "telefone", "email", "site"]
+    ordering_fields = ["id", "nome"]
+    ordering = ["id"]
+
 
 class LivroUnidadeViewSet(viewsets.ModelViewSet):
-    queryset = LivroUnidade.objects.all()
+    queryset = LivroUnidade.objects.all().select_related("livro", "unidade").order_by("id")
     serializer_class = LivroUnidadeSerializer
+    permission_classes = [ReadOnlyOrAdmin]
+    pagination_class = DefaultPageNumberPagination
+
+    filter_backends = [filters.OrderingFilter]
+    ordering_fields = ["id"]
+    ordering = ["id"]
+
 
 class LivroViewSet(viewsets.ModelViewSet):
-    queryset = Livro.objects.all()
+    """
+    GET /gestor/livros/?titulo=...&autor=...&tipo_obra=ID&editora=...&isbn=...&unidades=1,2
+    Suporta também ?unidades=NOME_DA_UNIDADE (exato ou parcial).
+    """
     serializer_class = LivroSerializer
+    permission_classes = [ReadOnlyOrAdmin]
+    pagination_class = DefaultPageNumberPagination
+
+    # Busca e ordenação DRF
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    # Busca livre adicional (além dos filtros exatos)
+    search_fields = ["titulo", "autor", "editora", "isbn"]
+    ordering_fields = ["id", "titulo"]
+    ordering = ["id"]
 
     def get_queryset(self):
-        """
-        Aplica filtros baseados nos parâmetros de query recebidos.
-        Suporta filtros por: titulo, autor, tipo_obra, editora, isbn, unidades
-        """
-        queryset = Livro.objects.all()
-        
-        # Filtro por título (busca parcial, case-insensitive)
-        titulo = self.request.query_params.get('titulo', None)
-        if titulo:
-            queryset = queryset.filter(titulo__icontains=titulo)
-        
-        # Filtro por autor (busca parcial, case-insensitive)
-        autor = self.request.query_params.get('autor', None)
-        if autor:
-            queryset = queryset.filter(autor__icontains=autor)
-        
-        # Filtro por tipo_obra (ID exato)
-        tipo_obra = self.request.query_params.get('tipo_obra', None)
-        if tipo_obra:
-            queryset = queryset.filter(tipo_obra_id=tipo_obra)
-        
-        # Filtro por editora (busca parcial, case-insensitive)
-        editora = self.request.query_params.get('editora', None)
-        if editora:
-            queryset = queryset.filter(editora__icontains=editora)
-        
-        # Filtro por ISBN (busca parcial)
-        isbn = self.request.query_params.get('isbn', None)
-        if isbn:
-            queryset = queryset.filter(isbn__icontains=isbn)
-        
-        # Filtro por unidades (livros que têm exemplares nas unidades especificadas)
-        unidades = self.request.query_params.get('unidades', None)
-        if unidades:
-            # Aceita lista de IDs separados por vírgula: ?unidades=1,2,3
-            unidade_ids = [int(uid.strip()) for uid in unidades.split(',') if uid.strip().isdigit()]
-            if unidade_ids:
-                queryset = queryset.filter(unidades__in=unidade_ids).distinct()
-        
-        return queryset
+        # Perf: carrega FKs/M2M com antecedência
+        qs = (
+            Livro.objects.all()
+            .select_related("tipo_obra")                # se Livro.tipo_obra é FK
+            .prefetch_related("unidades")              # se Livro.unidades é M2M
+            .order_by("id")
+        )
 
-@api_view(['GET'])
-def dados_iniciais(request):
-    generos = Genero.objects.all().values('id', 'nome')
-    unidades = Unidade.objects.all().values('id', 'nome', 'endereco', 'telefone', 'email', 'site')
-    tipos = TipoObra.objects.all().values('id', 'nome')
+        p = self.request.query_params
+
+        titulo = p.get("titulo")
+        if titulo:
+            qs = qs.filter(titulo__icontains=titulo)
+
+        autor = p.get("autor")
+        if autor:
+            qs = qs.filter(autor__icontains=autor)
+
+        tipo_obra = p.get("tipo_obra")
+        if tipo_obra:
+            qs = qs.filter(tipo_obra_id=tipo_obra)
+
+        editora = p.get("editora")
+        if editora:
+            qs = qs.filter(editora__icontains=editora)
+
+        isbn = p.get("isbn")
+        if isbn:
+            qs = qs.filter(isbn__icontains=isbn)
+
+        unidades = p.get("unidades")
+        if unidades:
+            # Aceita IDs separados por vírgula: ?unidades=1,2,3
+            # Aceita também nomes (parciais): ?unidades=Central
+            raw = [u.strip() for u in unidades.split(",") if u.strip()]
+            ids = [int(u) for u in raw if u.isdigit()]
+            nomes = [u for u in raw if not u.isdigit()]
+
+            q = Q()
+            if ids:
+                # Se Livro tem ManyToMany "unidades", funciona direto:
+                q |= Q(unidades__in=ids)
+                # Se fosse a through, poderia ser: Q(livro_unidades__unidade_id__in=ids)
+
+            if nomes:
+                # tenta casar por nome de unidade (parcial)
+                q |= Q(unidades__nome__icontains=" ".join(nomes))
+
+            if q:
+                qs = qs.filter(q).distinct()
+
+        return qs
+
+    # ---------- Documentação Swagger dos parâmetros ----------
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("titulo", OpenApiTypes.STR, OpenApiParameter.QUERY, description="Busca parcial por título"),
+            OpenApiParameter("autor", OpenApiTypes.STR, OpenApiParameter.QUERY, description="Busca parcial por autor"),
+            OpenApiParameter("tipo_obra", OpenApiTypes.INT, OpenApiParameter.QUERY, description="ID exato do tipo de obra"),
+            OpenApiParameter("editora", OpenApiTypes.STR, OpenApiParameter.QUERY, description="Busca parcial por editora"),
+            OpenApiParameter("isbn", OpenApiTypes.STR, OpenApiParameter.QUERY, description="Busca parcial por ISBN"),
+            OpenApiParameter(
+                "unidades",
+                OpenApiTypes.STR,
+                OpenApiParameter.QUERY,
+                description="IDs separados por vírgula (ex.: 1,2) ou nome da unidade (ex.: Central). Aceita múltiplos."
+            ),
+            OpenApiParameter("search", OpenApiTypes.STR, OpenApiParameter.QUERY, description="Busca livre (DRF SearchFilter)"),
+            OpenApiParameter("ordering", OpenApiTypes.STR, OpenApiParameter.QUERY, description="Ordenação (ex.: titulo ou -titulo)"),
+            OpenApiParameter("page", OpenApiTypes.INT, OpenApiParameter.QUERY, description="Página (paginação)"),
+            OpenApiParameter("size", OpenApiTypes.INT, OpenApiParameter.QUERY, description="Tamanho da página (default=20, máx=200)"),
+        ]
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+
+# ---------- Endpoint utilitário ----------
+@api_view(["GET"])
+def dados_iniciais(_request):
+    generos = Genero.objects.all().values("id", "nome")
+    unidades = Unidade.objects.all().values("id", "nome", "endereco", "telefone", "email", "site")
+    tipos = TipoObra.objects.all().values("id", "nome")
     return Response({
-        'generos': list(generos),
-        'unidades': list(unidades),
-        'tipo_obras': list(tipos)
+        "generos": list(generos),
+        "unidades": list(unidades),
+        "tipo_obras": list(tipos),
     })
