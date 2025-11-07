@@ -1,13 +1,23 @@
+# 📁 src/gestor/presentation/urls.py
+from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from django.urls import path
-from gestor.presentation.views import LivroViewSet, UnidadeViewSet, dados_iniciais
+from gestor.presentation.views import (
+    LivroViewSet,
+    UnidadeViewSet,
+    LivroUnidadeViewSet,
+    dados_iniciais,
+    db_info,  # 👈 adiciona aqui
+)
 
+# ---------- Roteador padrão DRF ----------
 router = DefaultRouter()
-router.register(r'livros', LivroViewSet, basename='livro')
-router.register(r'unidades', UnidadeViewSet, basename='unidade')
+router.register(r"livros", LivroViewSet, basename="livro")
+router.register(r"unidades", UnidadeViewSet, basename="unidade")
+router.register(r"livro-unidades", LivroUnidadeViewSet, basename="livro-unidade")
 
-urlpatterns = router.urls
-
-urlpatterns += [
-    path('dados-iniciais/', dados_iniciais, name='dados-iniciais'),
+# ---------- URLs principais ----------
+urlpatterns = [
+    path("", include(router.urls)),
+    path("dados-iniciais/", dados_iniciais, name="dados-iniciais"),
+    path("debug/db-info/", db_info, name="db-info"),  # 👈 nova rota
 ]
