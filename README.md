@@ -94,6 +94,29 @@ python manage.py runserver
 
 Acesse a API em http://127.0.0.1:8000/.
 
+### Atalho de comando único (estilo scripts)
+
+Também é possível rodar o backend com um único comando usando o launcher local:
+
+```bash
+python run.py dev
+```
+
+Esse comando executa, em sequência:
+
+1. `python manage.py check`
+2. `python manage.py migrate`
+3. `python manage.py runserver`
+
+Outros atalhos disponíveis:
+
+```bash
+python run.py check
+python run.py migrate
+python run.py makemigrations
+python run.py makemigrations gestor
+```
+
 ### 7\. **Docker (opcional)**
 
 Se preferir rodar o projeto em um contêiner Docker, crie a imagem com o comando:
@@ -160,6 +183,56 @@ A seguir estão algumas rotas da API disponíveis:
 - **PUT /gestor/unidades/{id}/**: Atualizar uma unidade específica. Envie todos os campos obrigatórios.
 - **PATCH /gestor/unidades/{id}/**: Atualizar parcialmente uma unidade específica. Envie apenas os campos que deseja alterar.
 - **DELETE /gestor/unidades/{id}/**: Excluir uma unidade específica.
+
+- **GET /gestor/livros/isbn-lookup/?isbn={isbn}**: Consulta metadados por ISBN na Open Library, traduz campos textuais para pt-BR (Google como primário, MyMemory como fallback) e retorna payload pronto para pré-preenchimento no frontend.
+
+Exemplo de resposta:
+
+```json
+{
+  "data": {
+    "isbn": "9780140328721",
+    "titulo": "Fantástico Sr. Raposo",
+    "autor": "Roald Dahl",
+    "editora": "Puffin",
+    "data_publicacao": "1988-01-01",
+    "paginas": 96,
+    "capa": "https://covers.openlibrary.org/b/id/12345-L.jpg",
+    "idioma": "Inglês",
+    "source": "openlibrary"
+  },
+  "meta": {
+    "source": "openlibrary",
+    "translation_provider": "google",
+    "translated_fields": ["titulo", "idioma"],
+    "warnings": [],
+    "cache_hit": false
+  }
+}
+```
+
+Status comuns:
+
+- `400`: ISBN inválido ou ausente.
+- `404`: ISBN não encontrado na Open Library.
+- `503`: Falha de integração externa.
+
+## Variáveis de Ambiente da Integração ISBN
+
+As variáveis abaixo estão documentadas também em `.env.example`:
+
+- `OPENLIBRARY_BASE_URL`
+- `OPENLIBRARY_TIMEOUT_SECONDS`
+- `OPENLIBRARY_USER_AGENT`
+- `OPENLIBRARY_CONTACT_EMAIL`
+- `ISBN_LOOKUP_CACHE_TTL_SECONDS`
+- `GOOGLE_TRANSLATE_ENABLED`
+- `GOOGLE_TRANSLATE_API_KEY`
+- `MYMEMORY_BASE_URL`
+- `MYMEMORY_CONTACT_EMAIL`
+- `TRANSLATION_SOURCE_LANG`
+- `TRANSLATION_TARGET_LANG`
+- `TRANSLATION_FIELDS` (padrão: `titulo,idioma`; mantém nomes próprios como autor/editora sem tradução)
 
 ## Passo a Passo para Configurar o Banco de Dados
 

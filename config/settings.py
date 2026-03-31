@@ -55,6 +55,34 @@ CSRF_TRUSTED_ORIGINS = env.list(
 )
 
 # =========================
+# Integrações externas (ISBN / Tradução)
+# =========================
+OPENLIBRARY_BASE_URL = env(
+    "OPENLIBRARY_BASE_URL",
+    default="https://openlibrary.org",
+)
+OPENLIBRARY_TIMEOUT_SECONDS = env.float("OPENLIBRARY_TIMEOUT_SECONDS", default=8.0)
+OPENLIBRARY_USER_AGENT = env(
+    "OPENLIBRARY_USER_AGENT",
+    default="BibliotecasConectadas/1.0",
+)
+OPENLIBRARY_CONTACT_EMAIL = env("OPENLIBRARY_CONTACT_EMAIL", default="")
+
+GOOGLE_TRANSLATE_ENABLED = env.bool("GOOGLE_TRANSLATE_ENABLED", default=False)
+GOOGLE_TRANSLATE_API_KEY = env("GOOGLE_TRANSLATE_API_KEY", default="")
+
+MYMEMORY_BASE_URL = env(
+    "MYMEMORY_BASE_URL",
+    default="https://api.mymemory.translated.net",
+)
+MYMEMORY_CONTACT_EMAIL = env("MYMEMORY_CONTACT_EMAIL", default="")
+
+TRANSLATION_SOURCE_LANG = env("TRANSLATION_SOURCE_LANG", default="auto")
+TRANSLATION_TARGET_LANG = env("TRANSLATION_TARGET_LANG", default="pt-BR")
+TRANSLATION_FIELDS = env.list("TRANSLATION_FIELDS", default=["titulo", "idioma"])
+ISBN_LOOKUP_CACHE_TTL_SECONDS = env.int("ISBN_LOOKUP_CACHE_TTL_SECONDS", default=86400)
+
+# =========================
 # Apps / Middleware
 # =========================
 INSTALLED_APPS = [
