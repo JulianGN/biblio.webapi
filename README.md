@@ -8,7 +8,7 @@ O **BiblioWebAPI** é um sistema desenvolvido para gerenciar o empréstimo de li
 
 - **Gestão de Empréstimos**: Registro de empréstimos de livros, com controle de prazo e devoluções.
 - **Módulos Escaláveis**: Estrutura baseada em DDD, com separação clara entre camadas de domínio, aplicação, infraestrutura e apresentação.
-- **Persistência de Dados**: Integração com banco de dados MySQL para persistência de dados.
+- **Persistência de Dados**: Suporte a SQLite local e banco relacional via `DATABASE_URL`.
 - **API REST**: Fornece endpoints para interação com os dados do sistema.
 - **Facilidade de Expansão**: Novo contexto e funcionalidades podem ser facilmente adicionados sem afetar o funcionamento do sistema.
 - **Segurança**: Configurações de segurança como CORS, CSRF e autenticação implementadas.
@@ -48,24 +48,34 @@ pip install -r requirements.txt
 
 ### 3\. **Configuração do Banco de Dados**
 
-Configure o banco de dados no arquivo config/database.py com as credenciais apropriadas.
-
-```sql
-CREATE DATABASE biblioDB;
-```
+Se você for usar o banco publicado, configure a variável `DATABASE_URL` no arquivo `.env` com a URL de conexão remota.
+Se quiser rodar localmente sem banco externo, deixe `DATABASE_URL` vazio e o projeto usará SQLite como fallback.
 
 ### Configuração de Variáveis de Ambiente
 
 Crie um arquivo `.env` na raiz do projeto com as seguintes variáveis:
 
 ```env
-DATABASE_NAME=biblioDB
-DATABASE_USER=seu_usuario
-DATABASE_PASSWORD=sua_senha
-DATABASE_HOST=localhost
-DATABASE_PORT=3306
+# DATABASE_URL=postgresql://usuario:senha@host:5432/banco
+# ou deixe vazio para SQLite local
+DATABASE_URL=
 SECRET_KEY=sua_chave_secreta
 DEBUG=True
+ALLOWED_HOSTS=localhost,127.0.0.1
+CSRF_TRUSTED_ORIGINS=http://localhost:5173
+CORS_ALLOWED_ORIGINS=http://localhost:5173
+OPENLIBRARY_BASE_URL=https://openlibrary.org
+OPENLIBRARY_TIMEOUT_SECONDS=8
+OPENLIBRARY_USER_AGENT=BibliotecasConectadas/1.0
+OPENLIBRARY_CONTACT_EMAIL=contato@exemplo.com
+ISBN_LOOKUP_CACHE_TTL_SECONDS=86400
+GOOGLE_TRANSLATE_ENABLED=False
+GOOGLE_TRANSLATE_API_KEY=
+MYMEMORY_BASE_URL=https://api.mymemory.translated.net
+MYMEMORY_CONTACT_EMAIL=contato@exemplo.com
+TRANSLATION_SOURCE_LANG=auto
+TRANSLATION_TARGET_LANG=pt-BR
+TRANSLATION_FIELDS=titulo,idioma
 ```
 
 ### 4\. **Realize as Migrações**
@@ -217,9 +227,16 @@ Status comuns:
 - `404`: ISBN não encontrado na Open Library.
 - `503`: Falha de integração externa.
 
-## Variáveis de Ambiente da Integração ISBN
+## Variáveis de Ambiente do Projeto
 
 As variáveis abaixo estão documentadas também em `.env.example`:
+
+- `DATABASE_URL`
+- `SECRET_KEY`
+- `DEBUG`
+- `ALLOWED_HOSTS`
+- `CSRF_TRUSTED_ORIGINS`
+- `CORS_ALLOWED_ORIGINS`
 
 - `OPENLIBRARY_BASE_URL`
 - `OPENLIBRARY_TIMEOUT_SECONDS`
