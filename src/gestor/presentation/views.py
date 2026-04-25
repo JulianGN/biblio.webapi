@@ -1,5 +1,7 @@
 # 📁 src/gestor/presentation/views.py
 from django.db.models import Q
+from django.core.cache import cache
+from django.conf import settings
 from rest_framework import viewsets, filters, permissions
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
@@ -16,6 +18,13 @@ from gestor.presentation.serializers import (
     UnidadeSerializer,
     LivroUnidadeSerializer,
 )
+from gestor.infrastructure.external_book_services import (
+    OpenLibraryLookupService,
+    ExternalServiceError,
+    InvalidIsbnError,
+    IsbnNotFoundError,
+)
+from gestor.infrastructure.translation_service import TranslationService
 
 # =========================================================
 # ViewSets sem paginação (array puro) e com acesso liberado
@@ -194,3 +203,61 @@ def db_info(_request):
         "user": cfg.get("USER"),
         "host": cfg.get("HOST"),
     })
+
+
+@extend_schema(
+    parameters=[
+        OpenApiParameter(
+            "isbn",
+            OpenApiTypes.STR,
+            OpenApiParameter.QUERY,
+            required=True,
+            description="ISBN-10 ou ISBN-13",
+        ),
+    ],
+    responses={
+        200: OpenApiTypes.OBJECT,
+        400: OpenApiTypes.OBJECT,
+        404: OpenApiTypes.OBJECT,
+        503: OpenApiTypes.OBJECT,
+    },
+)
+@api_view(["GET"])
+def isbn_lookup(request):
+    raw_isbn = (request.query_params.get("isbn") or "").strip()
+    if not raw_isbn:
+        return Response({"detail": "Parâmetro isbn é obrigatório."}, status=400)
+
+    cache_key = f"isbn_lookup:{raw_isbn}"
+    cached = cache.get(cache_key)
+    if cached:
+        cached["meta"]["cache_hit"] = True
+        return Response(cached)
+
+    lookup_service = OpenLibraryLookupService()
+    translation_service = TranslationService()
+
+    try:
+        base_payload = lookup_service.lookup(raw_isbn)
+    except InvalidIsbnError as exc:
+        return Response({"detail": str(exc)}, status=400)
+    except IsbnNotFoundError as exc:
+        return Response({"detail": str(exc)}, status=404)
+    except ExternalServiceError as exc:
+        return Response({"detail": str(exc)}, status=503)
+
+    translated_payload, translation_meta = translation_service.translate_book_payload(base_payload)
+
+    response_payload = {
+        "data": translated_payload,
+        "meta": {
+            "source": "openlibrary",
+            "translation_provider": translation_meta.get("provider", "none"),
+            "translated_fields": translation_meta.get("translated_fields", []),
+            "warnings": translation_meta.get("warnings", []),
+            "cache_hit": False,
+        },
+    }
+
+    cache.set(cache_key, response_payload, timeout=settings.ISBN_LOOKUP_CACHE_TTL_SECONDS)
+    return Response(response_payload)

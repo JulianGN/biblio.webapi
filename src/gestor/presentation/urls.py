@@ -6,6 +6,7 @@ from gestor.presentation.views import (
     UnidadeViewSet,
     LivroUnidadeViewSet,
     dados_iniciais,
+    isbn_lookup,
     db_info,  # 👈 adiciona aqui
 )
 
@@ -17,7 +18,8 @@ router.register(r"livro-unidades", LivroUnidadeViewSet, basename="livro-unidade"
 
 # ---------- URLs principais ----------
 urlpatterns = [
-    path("", include(router.urls)),
     path("dados-iniciais/", dados_iniciais, name="dados-iniciais"),
+    path("livros/isbn-lookup/", isbn_lookup, name="isbn-lookup"),
     path("debug/db-info/", db_info, name="db-info"),  # 👈 nova rota
+    path("", include(router.urls)),
 ]
